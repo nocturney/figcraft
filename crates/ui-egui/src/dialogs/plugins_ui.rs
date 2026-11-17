@@ -457,6 +457,18 @@ fn size(bytes: u64) -> String {
     }
 }
 
+/// Keep a safety-dialog line aligned to the reading edge without turning the whole
+/// security notice into a horizontal row (which would break wrapping).
+fn security_confirmation_row(ui: &mut Ui, rtl: bool, draw: impl FnOnce(&mut Ui)) {
+    if rtl {
+        ui.horizontal(|ui| {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), draw);
+        });
+    } else {
+        draw(ui);
+    }
+}
+
 /// Installing runs a plugin's code: this window shows what it asks permission for, where it comes
 /// from and its SHA-256, and installs only when Install is pressed.
 fn confirm_window(app: &mut FigApp, ctx: &Context, t: &Tokens) {
@@ -469,13 +481,20 @@ fn confirm_window(app: &mut FigApp, ctx: &Context, t: &Tokens) {
     let update = installed_version(&app.session, &e.id).is_some();
     let installing = app.session.waiting_for(INSTALL);
     let title = if update { tr("Update plugin") } else { tr("Install plugin") };
+    let rtl = crate::i18n::right_to_left();
     let (mut open, mut install, mut cancel) = (true, false, false);
     window(title, ctx).id(Id::unique("plugin_install_confirm")).open(&mut open).show(ctx, |ui| {
         ui.set_width(340.0);
-        ui.label(RichText::new(format!("{} {}", e.name, e.version)).font(semibold(13.0)).color(t.text));
-        widgets::label(ui, &trf("From {server}", &[("server", &server)]), t.text_secondary);
+        security_confirmation_row(ui, rtl, |ui| {
+            ui.label(RichText::new(format!("{} {}", e.name, e.version)).font(semibold(13.0)).color(t.text));
+        });
+        security_confirmation_row(ui, rtl, |ui| {
+            widgets::label(ui, &trf("From {server}", &[("server", &server)]), t.text_secondary);
+        });
         ui.add_space(10.0);
-        ui.label(RichText::new(tr("It asks permission to:")).font(semibold(11.0)).color(t.text));
+        security_confirmation_row(ui, rtl, |ui| {
+            ui.label(RichText::new(tr("It asks permission to:")).font(semibold(11.0)).color(t.text));
+        });
         let mut asks = vec![if e.access == "write" { tr("read and edit the document") } else { tr("read the document") }.to_string()];
         asks.push(if e.commands.is_empty() {
             tr("call any command its access allows").to_string()
@@ -485,31 +504,42 @@ fn confirm_window(app: &mut FigApp, ctx: &Context, t: &Tokens) {
         if e.widget {
             asks.push(tr("put a widget on the canvas").to_string());
         }
-        // shortcut: a directory entry doesn't say whether the manifest asks for `saveFile` (a new
-        // field would break the entries' postcard wire format), so every API 4 plugin says it may;
-        // carry the permission in the entry once the directory protocol negotiates new fields.
+        // The directory protocol does not expose the saveFile permission for API 4.
         if e.api >= 4 {
             asks.push(tr("offer files to save if it asks to (you choose where each one goes)").to_string());
         }
         for a in asks {
-            ui.add(egui::Label::new(RichText::new(format!("•  {a}")).font(regular(11.0)).color(t.text)).wrap());
+            security_confirmation_row(ui, rtl, |ui| {
+                ui.add(egui::Label::new(RichText::new(format!("•  {a}")).font(regular(11.0)).color(t.text)).wrap());
+            });
         }
         ui.add_space(8.0);
-        widgets::label(
-            ui,
-            tr("Plugins run in FigCraft's sandbox, without files, network or clock. Install only plugins you trust."),
-            t.text_secondary,
-        );
+        security_confirmation_row(ui, rtl, |ui| {
+            widgets::label(
+                ui,
+                tr("Plugins run in FigCraft's sandbox, without files, network or clock. Install only plugins you trust."),
+                t.text_secondary,
+            );
+        });
         ui.add_space(4.0);
-        widgets::label(ui, &trf("SHA-256: {sha}…", &[("sha", &e.sha256.get(..16).unwrap_or_default())]), t.text_secondary);
+        security_confirmation_row(ui, rtl, |ui| {
+            widgets::label(ui, &trf("SHA-256: {sha}…", &[("sha", &e.sha256.get(..16).unwrap_or_default())]), t.text_secondary);
+        });
         ui.add_space(12.0);
         ui.horizontal(|ui| {
-            if installing {
-                widgets::label(ui, tr("Installing…"), t.text_secondary);
+            let mut draw_buttons = |ui: &mut Ui| {
+                if installing {
+                    widgets::label(ui, tr("Installing…"), t.text_secondary);
+                } else {
+                    install = widgets::button(ui, if update { tr("Update") } else { tr("Install") }, true, true).clicked();
+                }
+                cancel = widgets::button(ui, tr("Cancel"), false, true).clicked();
+            };
+            if rtl {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| draw_buttons(ui));
             } else {
-                install = widgets::button(ui, if update { tr("Update") } else { tr("Install") }, true, true).clicked();
+                draw_buttons(ui);
             }
-            cancel = widgets::button(ui, tr("Cancel"), false, true).clicked();
         });
     });
     if !open || cancel {
