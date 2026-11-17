@@ -1392,6 +1392,12 @@ status = "draft — needs native review"
 "Ctrl+arrows" = "Ctrl+מקשי החצים"
 "The canvas previews colors in sRGB; PNG, JPG and WebP exports that use the file's profile are tagged Display P3." = "משטח העבודה מציג תצוגה מקדימה של צבעים ב־sRGB; קובצי PNG, JPG ו־WebP המיוצאים עם פרופיל הצבע של הקובץ מסומנים כ־Display P3."
 
+"From {server}" = "מהשרת {server}"
+"call any command its access allows" = "להפעיל כל פקודה שהרשאות התוסף מאפשרות"
+"call only: {commands}" = "להפעיל רק את הפקודות: {commands}"
+"put a widget on the canvas" = "להוסיף רכיב אינטראקטיבי למשטח העבודה"
+"SHA-256: {sha}…" = "טביעת SHA-256: {sha}…"
+
 [commands]
 "branch.create" = "יצירת ענף…"
 "collab.join" = "הצטרפות לסשן משותף…"
