@@ -17,6 +17,12 @@ pub struct BatchRenameUi {
 /// Layers whose new names the dialog previews.
 const PREVIEW_ROWS: usize = 5;
 
+// Native controls keep a full-width row while choosing the visual reading edge.
+// This mirrors the fields, preview and actions without reversing rename semantics.
+fn rename_row<R>(ui: &mut egui::Ui, rtl: bool, f: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    ui.horizontal(|ui| if rtl { ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), f).inner } else { f(ui) }).inner
+}
+
 /// Open the Rename layers dialog for `ids` (several layers: Cmd/Ctrl+R, F2, the context menu).
 pub(crate) fn open_batch_rename(app: &mut FigApp, ids: &[NodeId]) {
     let Ok(doc) = app.session.doc() else { return };
@@ -41,6 +47,7 @@ pub(crate) fn batch_rename_params(b: &BatchRenameUi) -> serde_json::Value {
 pub(super) fn batch_rename_dialog(app: &mut FigApp, ctx: &Context) {
     let Some(mut b) = app.ui.batch_rename.clone() else { return };
     let t = Tokens::get(ctx);
+    let rtl = crate::i18n::right_to_left();
     let find = (!b.find.is_empty()).then_some(b.find.as_str());
     let rename = figcraft_engine::rename::BatchRename::new(find, b.regex, &b.to, find.is_none().then_some(b.to.as_str()), Some(f64::from(b.start)));
     let n = b.ids.len();
@@ -60,16 +67,20 @@ pub(super) fn batch_rename_dialog(app: &mut FigApp, ctx: &Context) {
     let mut apply = false;
     window(tr("Rename layers"), ctx).id(egui::Id::unique("Rename layers")).open(&mut open).show(ctx, |ui| {
         ui.set_width(320.0);
-        ui.label(RichText::new(trn("{n} layers", n, &[])).color(t.text_secondary));
+        rename_row(ui, rtl, |ui| {
+            ui.label(RichText::new(trn("{n} layers", n, &[])).color(t.text_secondary));
+        });
         ui.add_space(6.0);
-        let r = ui.add(egui::TextEdit::singleline(&mut b.find).hint_text(tr("Match (empty: the whole name)")).desired_width(300.0));
+        let r = rename_row(ui, rtl, |ui| {
+            ui.add(egui::TextEdit::singleline(&mut b.find).hint_text(tr("Match (empty: the whole name)")).desired_width(300.0))
+        });
         crate::widgets::select_all_on_focus(ui, &r, &b.find);
-        if crate::widgets::checkbox(ui, b.regex, tr("Regular expression")) {
+        if rename_row(ui, rtl, |ui| crate::widgets::checkbox(ui, b.regex, tr("Regular expression"))) {
             b.regex = !b.regex;
         }
-        let to = ui.add(egui::TextEdit::singleline(&mut b.to).hint_text(tr("Rename to")).desired_width(300.0));
+        let to = rename_row(ui, rtl, |ui| ui.add(egui::TextEdit::singleline(&mut b.to).hint_text(tr("Rename to")).desired_width(300.0)));
         crate::widgets::select_all_on_focus(ui, &to, &b.to);
-        ui.horizontal(|ui| {
+        rename_row(ui, rtl, |ui| {
             for (label, code) in [(tr("Current name"), "$&"), (tr("Number ↑"), "$n"), (tr("Number ↓"), "$N")] {
                 if ui.button(label).clicked() {
                     b.to.push_str(code);
@@ -77,30 +88,35 @@ pub(super) fn batch_rename_dialog(app: &mut FigApp, ctx: &Context) {
                 }
             }
         });
-        ui.horizontal(|ui| {
+        rename_row(ui, rtl, |ui| {
             ui.label(tr("Start ascending from / stop descending at"));
             ui.add(egui::DragValue::new(&mut b.start).range(0..=1_000_000));
         });
         ui.add_space(8.0);
         match &rename {
             Err(e) => {
-                ui.label(RichText::new(e).color(t.danger));
+                rename_row(ui, rtl, |ui| {
+                    ui.label(RichText::new(e).color(t.danger));
+                });
             }
             Ok(_) => {
                 for (old, new) in &preview {
-                    ui.horizontal(|ui| {
+                    rename_row(ui, rtl, |ui| {
+                        // A right-to-left preview reads original, arrow, replacement from the right.
                         ui.label(RichText::new(old).color(t.text_secondary));
-                        ui.label("→");
+                        ui.label(if rtl { "←" } else { "→" });
                         ui.label(new);
                     });
                 }
                 if ready && n > PREVIEW_ROWS {
-                    ui.label(RichText::new(trn("and {n} more", n - PREVIEW_ROWS, &[])).color(t.text_secondary));
+                    rename_row(ui, rtl, |ui| {
+                        ui.label(RichText::new(trn("and {n} more", n - PREVIEW_ROWS, &[])).color(t.text_secondary));
+                    });
                 }
             }
         }
         ui.add_space(8.0);
-        ui.horizontal(|ui| {
+        rename_row(ui, rtl, |ui| {
             cancel = crate::widgets::button(ui, tr("Cancel"), false, true).clicked();
             let enter = to.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
             apply = (crate::widgets::button(ui, tr("Rename"), true, ready).clicked() || enter) && ready;

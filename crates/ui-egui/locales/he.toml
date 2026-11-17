@@ -8,6 +8,14 @@ name = "עברית"
 status = "draft — needs native review"
 
 [ui]
+# 17 Nov 2026 DAY-03: isolated Native batch-rename RTL completion; official English source keys.
+"Match (empty: the whole name)" = "התאמה (ריק: החלפת השם כולו)"
+"Rename to" = "שם חדש"
+"Number ↑" = "מספר עולה ↑"
+"Number ↓" = "מספר יורד ↓"
+"Start ascending from / stop descending at" = "תחילת מספור עולה / סוף מספור יורד"
+"{n} layers" = { one = "{n} שכבה", other = "{n} שכבות" }
+"and {n} more" = { one = "ועוד {n}", other = "ועוד {n}" }
 # 17 Nov 2026 NIGHT-L03: source-exact native preview, autosave, sharing/security and font consent UI; AI-assisted Hebrew draft.
 "({n} warnings: some entries were skipped)" = { one = "({n} אזהרה: חלק מהרשומות דולגו)", other = "({n} אזהרות: חלק מהרשומות דולגו)" }
 "Pixel preview 1x" = "תצוגה מקדימה בפיקסלים ×1"
