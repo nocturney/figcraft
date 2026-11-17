@@ -87,10 +87,23 @@ pub(super) fn export_dialog(app: &mut FigApp, ctx: &Context) {
         preset(1.0, ExportFormat::VectorDrawable),
     ];
     let mut choice = None;
+    let rtl = crate::i18n::right_to_left();
     window(tr("Export"), ctx).open(&mut open).show(ctx, |ui| {
         ui.set_width(320.0);
+        // Preserve full-width hit targets; only the reading edge changes with the UI locale.
+        let aligned_label = |ui: &mut egui::Ui, label: RichText| {
+            if rtl {
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(label);
+                    });
+                });
+            } else {
+                ui.label(label);
+            }
+        };
         let caption = |ui: &mut egui::Ui, s: &str| {
-            ui.label(RichText::new(s).font(regular(11.0)).color(t.text_secondary));
+            aligned_label(ui, RichText::new(s).font(regular(11.0)).color(t.text_secondary));
         };
         let divider = |ui: &mut egui::Ui| {
             ui.add_space(10.0);
@@ -103,7 +116,12 @@ pub(super) fn export_dialog(app: &mut FigApp, ctx: &Context) {
             if resp.hovered() {
                 ui.painter().rect_filled(r, CornerRadius::same(5), t.hover);
             }
-            ui.painter().text(r.left_center() + vec2(10.0, 0.0), Align2::LEFT_CENTER, label, regular(12.0), t.text);
+            let (anchor, align) = if rtl {
+                (r.right_center() - vec2(10.0, 0.0), Align2::RIGHT_CENTER)
+            } else {
+                (r.left_center() + vec2(10.0, 0.0), Align2::LEFT_CENTER)
+            };
+            ui.painter().text(anchor, align, label, regular(12.0), t.text);
             match tip {
                 Some(tip) => resp.on_hover_text(tip).clicked(),
                 None => resp.clicked(),
@@ -114,7 +132,7 @@ pub(super) fn export_dialog(app: &mut FigApp, ctx: &Context) {
             caption(ui, tr("With the layers' export settings"));
             const SHOWN: usize = 6;
             for j in jobs.iter().take(SHOWN) {
-                ui.label(RichText::new(&j.file).font(regular(12.0)).color(t.text));
+                aligned_label(ui, RichText::new(&j.file).font(regular(12.0)).color(t.text));
             }
             if jobs.len() > SHOWN {
                 caption(ui, &trn("and {n} more", jobs.len() - SHOWN, &[]));
